@@ -3,3 +3,4 @@ pkg/
 bin/
 .vscode
 .DS_Store
+connectors-test-client
