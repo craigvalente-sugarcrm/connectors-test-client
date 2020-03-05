@@ -2,6 +2,7 @@ package outlook
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -26,10 +27,29 @@ func NewService(ctx context.Context, client *http.Client) (*Service, error) {
 	return svc, nil
 }
 
+// Calendars fetches Calendars
+func (svc *Service) Calendars(ownerID string) (*[]string, error) {
+	url := fmt.Sprintf("/users/%s/calendars", ownerID)
+	msCalendars := &types.Calendars{}
+	_, err := svc.client.Get(url, msCalendars)
+	if err != nil {
+		return &[]string{}, errors.Wrap(err, "Unable to perform list")
+	}
+
+	calendars := []string{}
+	for _, msCal := range msCalendars.Calendars {
+		calendars = append(calendars, msCal.ID)
+	}
+
+	return &calendars, nil
+}
+
 // List fetches calendar events
-func (svc *Service) List(calenderID string, query string, maxResults int) ([]*calendar.Event, error) {
+func (svc *Service) List(deltaLink string, search string, maxResults int) ([]*calendar.Event, error) {
 	msEvents := &types.Events{}
-	_, err := svc.client.Get("agg.DeltaLink", msEvents)
+	url := fmt.Sprintf("%s&search=subject%%3A%s", deltaLink, search)
+	// fmt.Println(url)
+	_, err := svc.client.Get(url, msEvents)
 	if err != nil {
 		return []*calendar.Event{}, errors.Wrap(err, "Unable to perform list")
 	}
@@ -44,9 +64,9 @@ func (svc *Service) List(calenderID string, query string, maxResults int) ([]*ca
 }
 
 // Insert inserts calendar event
-func (svc *Service) Insert(calendarID string, event *calendar.Event) (*calendar.Event, error) {
+func (svc *Service) Insert(deltaLink string, event *calendar.Event) (*calendar.Event, error) {
 	msEvent := convertToOutlookEvent(event)
-	_, err := svc.client.Post("agg.DeltaLink", msEvent)
+	_, err := svc.client.Post(deltaLink, msEvent)
 	if err != nil {
 		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Insert")
 	}
@@ -54,9 +74,9 @@ func (svc *Service) Insert(calendarID string, event *calendar.Event) (*calendar.
 }
 
 // Update updates existing calendar event
-func (svc *Service) Update(calendarID string, event *calendar.Event) (*calendar.Event, error) {
+func (svc *Service) Update(deltaLink string, event *calendar.Event) (*calendar.Event, error) {
 	msEvent := convertToOutlookEvent(event)
-	_, err := svc.client.Put("agg.DeltaLink", msEvent)
+	_, err := svc.client.Put(deltaLink, msEvent)
 	if err != nil {
 		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Update")
 	}
@@ -64,8 +84,8 @@ func (svc *Service) Update(calendarID string, event *calendar.Event) (*calendar.
 }
 
 // Delete updates existing calendar event
-func (svc *Service) Delete(calendarID string, eventID string) error {
-	_, err := svc.client.Delete("agg.DeltaLink")
+func (svc *Service) Delete(deltaLink string, eventID string) error {
+	_, err := svc.client.Delete(deltaLink)
 	if err != nil {
 		return errors.Wrap(err, "Unable to perform Update")
 	}

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-const eventPrefix = "{TEST EVENT}"
+const eventPrefix = "--TEST_EVENT--"
 
 var config = oauth2.Config{
 	ClientID:     "CLIENT_ID",

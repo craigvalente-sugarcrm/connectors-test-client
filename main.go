@@ -17,9 +17,16 @@ func main() {
 	// Helper func to request authCode and exchange it for token
 	// google.GetTokenFromWeb()
 
+	// app, _ := initOutlookApp()
+	// calendars := app.ListCalendars()
+	// for _, cal := range *calendars {
+	// 	fmt.Println(cal)
+	// }
+
 	var app app.App
 	var err error
-	app, err = initGoogleApp()
+	// app, err = initGoogleApp()
+	app, err = initOutlookApp()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,12 +60,7 @@ func initGoogleApp() (*google.App, error) {
 
 func initOutlookApp() (*outlook.App, error) {
 	ctx := context.Background()
+	ownerID := "OWNER_ID"
 	calendarID := "CALENDAR_ID"
-	expiry, _ := time.Parse(time.RFC3339, "2020-02-27T10:09:02-05:00")
-	token := &oauth2.Token{
-		AccessToken:  "",
-		RefreshToken: "",
-		Expiry:       expiry,
-	}
-	return outlook.New(ctx, token, calendarID)
+	return outlook.New(ctx, ownerID, calendarID)
 }

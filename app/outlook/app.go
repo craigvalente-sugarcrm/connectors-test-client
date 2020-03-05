@@ -9,35 +9,50 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/clientcredentials"
 	"golang.org/x/oauth2/microsoft"
 	"google.golang.org/api/calendar/v3"
 )
 
-const eventPrefix = "{TEST EVENT}"
+const eventPrefix = "--TEST_EVENT--"
 
-var config = oauth2.Config{
-	ClientID:     "89d631ac-6d06-4b07-992b-ca78eed50787",
-	ClientSecret: "M0OF4S?[AdHp8S/8.B[dpiMxab=2+NZc",
-	Scopes:       []string{"offline_access", "Calendars.ReadWrite"},
-	Endpoint:     microsoft.AzureADEndpoint("tenent"),
-	RedirectURL:  "urn:ietf:wg:oauth:2.0:oob",
+var config clientcredentials.Config = clientcredentials.Config{
+	ClientID:     "9387a899-c2bb-449a-b532-3e1d7c866806",
+	ClientSecret: "CLIENT_SECRET",
+	TokenURL:     microsoft.AzureADEndpoint("b43b0d1b-165d-4fbf-a6b7-11583bf5bc63").TokenURL,
+	Scopes:       []string{"https://graph.microsoft.com/.default"},
 }
 
 // App for testing Outlook Calendar API
 type App struct {
+	ownerID    string
 	calendarID string
+	deltaLink  string
 	svc        *Service
 }
 
 // New Creates and retuns a new Outlook Test App
-func New(ctx context.Context, token *oauth2.Token, calendarID string) (*App, error) {
+func New(ctx context.Context, ownerID string, calendarID string) (*App, error) {
 	app := &App{
+		ownerID:    ownerID,
 		calendarID: calendarID,
 	}
 
-	client := oauth2.NewClient(ctx, oauth2.StaticTokenSource(token))
-	svc, err := NewService(ctx, client)
+	startDateTime := time.Now()
+	r := rand.Intn(1440 * 30) // 30 days
+	endDateTime := time.Now().Add(time.Minute * time.Duration(r))
+	app.deltaLink = fmt.Sprintf(
+		"/users/%s/calendars/%s/calendarView/delta?%s",
+		ownerID,
+		calendarID,
+		fmt.Sprintf(
+			"startDateTime=%s&endDateTime=%s",
+			startDateTime.Format(time.RFC3339),
+			endDateTime.Format(time.RFC3339),
+		),
+	)
+
+	svc, err := NewService(ctx, config.Client(ctx))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to create service")
 	}
@@ -45,25 +60,19 @@ func New(ctx context.Context, token *oauth2.Token, calendarID string) (*App, err
 	return app, nil
 }
 
-// GetTokenFromWeb Request a token from the web, then returns the retrieved token.
-func GetTokenFromWeb() {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Authorization Code: \n%v\n", authURL)
-
-	// authCode := ""
-	// token, err := config.Exchange(context.TODO(), authCode)
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve token from web: %v", err)
-	// } else {
-	// 	fmt.Printf("Authorization Code: %v\n", token.AccessToken)
-	// 	fmt.Printf("Authorization Code: %v\n", token.RefreshToken)
-	// 	fmt.Printf("Authorization Code: %v\n", token.Expiry.Format(time.RFC3339))
-	// }
+// ListCalendars fetch calendars for given user
+func (app *App) ListCalendars() *[]string {
+	calendars, err := app.svc.Calendars(app.ownerID)
+	if err != nil {
+		log.Printf("Error fetching calendars for user: %v\n", app.ownerID)
+		return &[]string{}
+	}
+	return calendars
 }
 
 // ListEvents fetch events for given calendar
 func (app *App) ListEvents(count int) []*calendar.Event {
-	events, err := app.svc.List(app.calendarID, eventPrefix, count)
+	events, err := app.svc.List(app.deltaLink, eventPrefix, count)
 	if err != nil {
 		log.Printf("Error fetching events for calendar: %v\n", app.calendarID)
 		return []*calendar.Event{}
@@ -92,7 +101,7 @@ func (app *App) CreateEvents(count int, rate int) []*calendar.Event {
 
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for i, event := range events {
-		goEvent, err := app.svc.Insert(app.calendarID, event)
+		goEvent, err := app.svc.Insert(app.deltaLink, event)
 		if err != nil {
 			log.Printf("Error creating event: %v\n", event.Summary)
 		} else {
@@ -127,7 +136,7 @@ func (app *App) UpdateEvents(count int, rate int) []*calendar.Event {
 
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for i, event := range events {
-		goEvent, err := app.svc.Update(app.calendarID, event)
+		goEvent, err := app.svc.Update(app.deltaLink, event)
 		if err != nil {
 			log.Printf("Error updating event: %v\n", event.Id)
 		} else {
@@ -146,7 +155,7 @@ func (app *App) DeleteEvents(count int, rate int) []*calendar.Event {
 	events := app.ListEvents(count)
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for _, event := range events {
-		err := app.svc.Delete(app.calendarID, event.Id)
+		err := app.svc.Delete(app.deltaLink, event.Id)
 		if err != nil {
 			log.Printf("Error deleting event: %v\n", event.Id)
 		} else {
