@@ -60,7 +60,6 @@ func initGoogleApp() (*google.App, error) {
 
 func initOutlookApp() (*outlook.App, error) {
 	ctx := context.Background()
-	ownerID := "OWNER_ID"
-	calendarID := "CALENDAR_ID"
-	return outlook.New(ctx, ownerID, calendarID)
+	ownerID := "glevine@sugardev.onmicrosoft.com"
+	return outlook.New(ctx, ownerID)
 }

@@ -25,32 +25,15 @@ var config clientcredentials.Config = clientcredentials.Config{
 
 // App for testing Outlook Calendar API
 type App struct {
-	ownerID    string
-	calendarID string
-	deltaLink  string
-	svc        *Service
+	ownerID string
+	svc     *Service
 }
 
 // New Creates and retuns a new Outlook Test App
-func New(ctx context.Context, ownerID string, calendarID string) (*App, error) {
+func New(ctx context.Context, ownerID string) (*App, error) {
 	app := &App{
-		ownerID:    ownerID,
-		calendarID: calendarID,
+		ownerID: ownerID,
 	}
-
-	startDateTime := time.Now()
-	r := rand.Intn(1440 * 30) // 30 days
-	endDateTime := time.Now().Add(time.Minute * time.Duration(r))
-	app.deltaLink = fmt.Sprintf(
-		"/users/%s/calendars/%s/calendarView/delta?%s",
-		ownerID,
-		calendarID,
-		fmt.Sprintf(
-			"startDateTime=%s&endDateTime=%s",
-			startDateTime.Format(time.RFC3339),
-			endDateTime.Format(time.RFC3339),
-		),
-	)
 
 	svc, err := NewService(ctx, config.Client(ctx))
 	if err != nil {
@@ -72,9 +55,9 @@ func (app *App) ListCalendars() *[]string {
 
 // ListEvents fetch events for given calendar
 func (app *App) ListEvents(count int) []*calendar.Event {
-	events, err := app.svc.List(app.deltaLink, eventPrefix, count)
+	events, err := app.svc.List(app.ownerID, eventPrefix, count)
 	if err != nil {
-		log.Printf("Error fetching events for calendar: %v\n", app.calendarID)
+		log.Printf("Error fetching events for owner: %v\n", app.ownerID)
 		return []*calendar.Event{}
 	}
 	return events
@@ -86,7 +69,7 @@ func (app *App) CreateEvents(count int, rate int) []*calendar.Event {
 	for i := 0; i < count; i++ {
 		rand.Seed(time.Now().UnixNano())
 		r := rand.Intn(1440 * 30) // 30 days
-		t := time.Now().Add(time.Minute * time.Duration(r))
+		t := time.Now().UTC().Add(time.Minute * time.Duration(r))
 		event := &calendar.Event{
 			Summary: fmt.Sprintf(eventPrefix+": %v", t.Unix()),
 			Start: &calendar.EventDateTime{
@@ -101,7 +84,7 @@ func (app *App) CreateEvents(count int, rate int) []*calendar.Event {
 
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for i, event := range events {
-		goEvent, err := app.svc.Insert(app.deltaLink, event)
+		goEvent, err := app.svc.Insert(app.ownerID, event)
 		if err != nil {
 			log.Printf("Error creating event: %v\n", event.Summary)
 		} else {
@@ -136,7 +119,7 @@ func (app *App) UpdateEvents(count int, rate int) []*calendar.Event {
 
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for i, event := range events {
-		goEvent, err := app.svc.Update(app.deltaLink, event)
+		goEvent, err := app.svc.Update(app.ownerID, event)
 		if err != nil {
 			log.Printf("Error updating event: %v\n", event.Id)
 		} else {
@@ -155,7 +138,7 @@ func (app *App) DeleteEvents(count int, rate int) []*calendar.Event {
 	events := app.ListEvents(count)
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for _, event := range events {
-		err := app.svc.Delete(app.deltaLink, event.Id)
+		err := app.svc.Delete(app.ownerID, event.Id)
 		if err != nil {
 			log.Printf("Error deleting event: %v\n", event.Id)
 		} else {

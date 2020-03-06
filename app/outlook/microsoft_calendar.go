@@ -45,9 +45,9 @@ func (svc *Service) Calendars(ownerID string) (*[]string, error) {
 }
 
 // List fetches calendar events
-func (svc *Service) List(deltaLink string, search string, maxResults int) ([]*calendar.Event, error) {
+func (svc *Service) List(ownerID string, search string, maxResults int) ([]*calendar.Event, error) {
 	msEvents := &types.Events{}
-	url := fmt.Sprintf("%s&search=subject%%3A%s", deltaLink, search)
+	url := fmt.Sprintf("%s&$filter=startswith(subject,'%s')", deltaLink(ownerID), search)
 	// fmt.Println(url)
 	_, err := svc.client.Get(url, msEvents)
 	if err != nil {
@@ -64,19 +64,27 @@ func (svc *Service) List(deltaLink string, search string, maxResults int) ([]*ca
 }
 
 // Insert inserts calendar event
-func (svc *Service) Insert(deltaLink string, event *calendar.Event) (*calendar.Event, error) {
+func (svc *Service) Insert(ownerID string, event *calendar.Event) (*calendar.Event, error) {
 	msEvent := convertToOutlookEvent(event)
-	_, err := svc.client.Post(deltaLink, msEvent)
+	// bytes, _ := json.Marshal(msEvent)
+	// fmt.Printf(string(bytes))
+	resp, err := svc.client.Post(eventsURL(ownerID), msEvent)
 	if err != nil {
 		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Insert")
+	}
+	if resp.StatusCode != http.StatusCreated {
+		err := errors.New(fmt.Sprintf("Request failed: %v\n", resp.StatusCode))
+		body, _ := ReadHTTPResponse(resp)
+		err = errors.Wrap(err, string(body))
+		return &calendar.Event{}, err
 	}
 	return event, nil
 }
 
 // Update updates existing calendar event
-func (svc *Service) Update(deltaLink string, event *calendar.Event) (*calendar.Event, error) {
+func (svc *Service) Update(ownerID string, event *calendar.Event) (*calendar.Event, error) {
 	msEvent := convertToOutlookEvent(event)
-	_, err := svc.client.Put(deltaLink, msEvent)
+	_, err := svc.client.Patch(fmt.Sprintf("%s/%s", eventsURL(ownerID), event.Id), msEvent)
 	if err != nil {
 		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Update")
 	}
@@ -84,35 +92,69 @@ func (svc *Service) Update(deltaLink string, event *calendar.Event) (*calendar.E
 }
 
 // Delete updates existing calendar event
-func (svc *Service) Delete(deltaLink string, eventID string) error {
-	_, err := svc.client.Delete(deltaLink)
+func (svc *Service) Delete(ownerID string, eventID string) error {
+	_, err := svc.client.Delete(fmt.Sprintf("%s/%s", eventsURL(ownerID), eventID))
 	if err != nil {
 		return errors.Wrap(err, "Unable to perform Update")
 	}
 	return nil
 }
 
+func getCalendar(ownerID string, calendarID string) *types.Calendar {
+	return &types.Calendar{
+		ID: calendarID,
+		Owner: &types.EmailAddress{
+			Name:    "Andaman",
+			Address: ownerID,
+		},
+	}
+}
+
 func convertToOutlookEvent(event *calendar.Event) *types.Event {
 	const DateTimeTimeZoneFormat = "2006-01-02T15:04:05.9999999"
 	t, _ := time.Parse(time.RFC3339, event.Start.DateTime)
-	z, _ := t.Zone()
 	start := &types.DateTimeTimeZone{
 		DateTime: t.Format(DateTimeTimeZoneFormat),
-		TimeZone: z,
+		TimeZone: t.Location().String(),
 	}
 	t, _ = time.Parse(time.RFC3339, event.End.DateTime)
-	z, _ = t.Zone()
 	end := &types.DateTimeTimeZone{
 		DateTime: t.Format(DateTimeTimeZoneFormat),
-		TimeZone: z,
+		TimeZone: t.Location().String(),
 	}
 	msEvent := &types.Event{
 		ID:      event.Id,
 		Subject: event.Summary,
 		Start:   start,
 		End:     end,
+		Body: &types.Body{
+			ContentType: "HTML",
+			Content:     "Project Andaman Test Event",
+		},
 	}
 	return msEvent
+}
+
+func calendarURL(ownerID string) string {
+	return fmt.Sprintf("/users/%s/calendar", ownerID)
+}
+
+func eventsURL(ownerID string) string {
+	return fmt.Sprintf("%s/events", calendarURL(ownerID))
+}
+
+func deltaLink(ownerID string) string {
+	startDateTime := time.Now().UTC()
+	endDateTime := startDateTime.Add(time.Minute * time.Duration(1440*30)) // 30 days
+	return fmt.Sprintf(
+		"%s/calendarView/?%s",
+		calendarURL(ownerID),
+		fmt.Sprintf(
+			"startDateTime=%s&endDateTime=%s",
+			startDateTime.Format(time.RFC3339),
+			endDateTime.Format(time.RFC3339),
+		),
+	)
 }
 
 func convertToGoogleEvent(msEvent *types.Event) *calendar.Event {

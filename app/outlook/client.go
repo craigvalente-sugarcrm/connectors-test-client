@@ -50,10 +50,10 @@ func (c *Client) Post(path string, body interface{}) (resp *http.Response, err e
 	return sendRequest(c.ctx, c.client, "POST", url, body)
 }
 
-// Put perform http Put
-func (c *Client) Put(path string, body interface{}) (resp *http.Response, err error) {
+// Patch perform http Patch
+func (c *Client) Patch(path string, body interface{}) (resp *http.Response, err error) {
 	url := c.buildURL(path)
-	return sendRequest(c.ctx, c.client, "PUT", url, body)
+	return sendRequest(c.ctx, c.client, "PATCH", url, body)
 }
 
 // Delete perform http DELETE
@@ -116,7 +116,7 @@ func applyResponseBody(resp *http.Response, target interface{}) error {
 		return nil
 	case -1:
 		// Can't safely use the JSON decoder because the body might be empty.
-		body, err := read(resp)
+		body, err := ReadHTTPResponse(resp)
 		if err != nil {
 			return err
 		}
@@ -133,8 +133,8 @@ func applyResponseBody(resp *http.Response, target interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
-// Read returns the response body.
-func read(resp *http.Response) ([]byte, error) {
+// ReadHTTPResponse returns the response body.
+func ReadHTTPResponse(resp *http.Response) ([]byte, error) {
 	defer resp.Body.Close()
 	return ioutil.ReadAll(resp.Body)
 }
