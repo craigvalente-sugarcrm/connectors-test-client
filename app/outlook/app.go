@@ -78,6 +78,7 @@ func (app *App) CreateEvents(count int, rate int) []*calendar.Event {
 			End: &calendar.EventDateTime{
 				DateTime: t.Add(time.Minute * time.Duration(15)).Format(time.RFC3339),
 			},
+			Description: fmt.Sprintf("Project Andaman eest event for user: %s", app.ownerID),
 		}
 		events = append(events, event)
 	}

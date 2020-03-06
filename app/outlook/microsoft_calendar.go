@@ -38,7 +38,7 @@ func (svc *Service) Calendars(ownerID string) (*[]string, error) {
 
 	calendars := []string{}
 	for _, msCal := range msCalendars.Calendars {
-		calendars = append(calendars, msCal.ID)
+		calendars = append(calendars, fmt.Sprintf("%s: %s", msCal.Name, msCal.ID))
 	}
 
 	return &calendars, nil
@@ -100,16 +100,6 @@ func (svc *Service) Delete(ownerID string, eventID string) error {
 	return nil
 }
 
-func getCalendar(ownerID string, calendarID string) *types.Calendar {
-	return &types.Calendar{
-		ID: calendarID,
-		Owner: &types.EmailAddress{
-			Name:    "Andaman",
-			Address: ownerID,
-		},
-	}
-}
-
 func convertToOutlookEvent(event *calendar.Event) *types.Event {
 	const DateTimeTimeZoneFormat = "2006-01-02T15:04:05.9999999"
 	t, _ := time.Parse(time.RFC3339, event.Start.DateTime)
@@ -129,7 +119,7 @@ func convertToOutlookEvent(event *calendar.Event) *types.Event {
 		End:     end,
 		Body: &types.Body{
 			ContentType: "HTML",
-			Content:     "Project Andaman Test Event",
+			Content:     event.Description,
 		},
 	}
 	return msEvent
