@@ -117,7 +117,12 @@ func (app *App) UpdateEvents(count int, rate int) []*calendar.Event {
 			},
 		}
 	}
+	app.UpdateTheseEvents(events, rate)
+	return events
+}
 
+// UpdateTheseEvents updates the provided events
+func (app *App) UpdateTheseEvents(events []*calendar.Event, rate int) {
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for i, event := range events {
 		goEvent, err := app.svc.Update(app.ownerID, event)
@@ -130,13 +135,17 @@ func (app *App) UpdateEvents(count int, rate int) []*calendar.Event {
 
 		time.Sleep(time.Second * time.Duration(delay))
 	}
-
-	return events
 }
 
 // DeleteEvents finds and deletes all test events
 func (app *App) DeleteEvents(count int, rate int) []*calendar.Event {
 	events := app.ListEvents(count)
+	app.DeleteTheseEvents(events, rate)
+	return events
+}
+
+// DeleteTheseEvents deletes the provided events
+func (app *App) DeleteTheseEvents(events []*calendar.Event, rate int) {
 	delay := int(math.Round(1.0 / (float64(rate) / 60)))
 	for _, event := range events {
 		err := app.svc.Delete(app.ownerID, event.Id)
@@ -148,6 +157,4 @@ func (app *App) DeleteEvents(count int, rate int) []*calendar.Event {
 
 		time.Sleep(time.Second * time.Duration(delay))
 	}
-
-	return events
 }

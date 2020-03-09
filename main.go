@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/connectors-test-client/app/google"
 	"github.com/connectors-test-client/app/outlook"
+	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 )
@@ -29,20 +28,13 @@ type settings struct {
 
 func main() {
 
-	args := os.Args[1:]
-	if len(args) != 2 {
-		log.Fatal("Missing required input params")
-		return
-	}
+	viper.BindEnv("numMinutes", "DURATION")
+	viper.BindEnv("eventsPerMinute", "RATE")
 
-	numMinutes, err := strconv.Atoi(args[0])
-	if err != nil {
-		log.Fatal(err, "1st param must be an int")
-	}
-	eventsPerMinute, err := strconv.Atoi(args[1])
-	if err != nil {
-		log.Fatal(err, "2nd param must be an int")
-	}
+	numMinutes := viper.GetInt("numMinutes")
+	eventsPerMinute := viper.GetInt("eventsPerMinute")
+
+	log.Printf("Running for %v minutes at a rate of %v events / minute.", numMinutes, eventsPerMinute)
 
 	ch := make(chan string, len(microsoftUsers))
 	for _, userID := range microsoftUsers {
@@ -95,8 +87,8 @@ func initGoogleApp() (*google.App, error) {
 	calendarID := "CALENDAR_ID"
 	expiry, _ := time.Parse(time.RFC3339, "2020-02-27T10:09:02-05:00")
 	token := &oauth2.Token{
-		AccessToken:  "",
-		RefreshToken: "",
+		AccessToken:  "ya29.a0Adw1xeUUFklLr-91F02hhnWIkdQtTvFhizN7rCs9SJx4laVLZMY5EtzpvqQVRQeky4FPNhEdGcTs50k7HJ5y9ZQ78_p8U4H-Dabduu30msP8SEXNvrTWAJdOY5QVUz4aSW8Ul7_tM950ZvWAcb0gLdFoKj1lOgFQhYQ",
+		RefreshToken: "1//01yraftveQw5oCgYIARAAGAESNwF-L9IrUjOwiPKsfat2sExOBJFT8k4pku3r-tckkZ9eomcmNSdxbEZce9CKBIN4e5EA5EXvg3g",
 		Expiry:       expiry,
 	}
 	return google.New(ctx, token, calendarID)
@@ -115,22 +107,43 @@ func runOutlookTest(s *settings, app *outlook.App, ch chan string) {
 	// }
 
 	var events []*calendar.Event
-	batch := int(math.Floor(float64(s.numEvents) / 4))
+	batch := int(math.Ceil(float64(s.numEvents) / 4))
 
 	events = app.CreateEvents(batch, s.rate)
 	fmt.Printf("Created %v events for user: %s\n", len(events), s.userID)
 
-	events = app.UpdateEvents(batch, s.rate)
-	fmt.Printf("Created %v events for user: %s\n", len(events), s.userID)
+	syncCh := make(chan int, 2)
+	events = app.ListEvents(batch)
+
+	go func(eventsToUpdate []*calendar.Event) {
+		app.UpdateTheseEvents(eventsToUpdate, s.rate)
+		fmt.Printf("Updated %v events for user: %s\n", len(eventsToUpdate), s.userID)
+		syncCh <- 1
+	}(events)
+	go func() {
+		events = app.CreateEvents(batch, s.rate)
+		fmt.Printf("Created %v events for user: %s\n", len(events), s.userID)
+		syncCh <- 1
+	}()
+	<-syncCh
+	<-syncCh
+
+	events = app.ListEvents(batch * 2)
+	go func(eventsToDelete []*calendar.Event) {
+		app.DeleteTheseEvents(eventsToDelete, s.rate)
+		fmt.Printf("Deleted %v events for user: %s\n", len(eventsToDelete), s.userID)
+		syncCh <- 1
+	}(events)
+	go func() {
+		events = app.CreateEvents(batch, s.rate)
+		fmt.Printf("Created %v events for user: %s\n", len(events), s.userID)
+		syncCh <- 1
+	}()
+	<-syncCh
+	<-syncCh
 
 	events = app.DeleteEvents(batch, s.rate)
-	fmt.Printf("Deleted %v events", len(events))
-
-	events = app.CreateEvents(batch, s.rate)
-	fmt.Printf("Created %v events\n", len(events))
-
-	events = app.DeleteEvents(batch, s.rate)
-	fmt.Printf("Deleted %v events", len(events))
+	fmt.Printf("Deleted %v events for user: %s\n", len(events), s.userID)
 
 	ch <- s.userID
 }
