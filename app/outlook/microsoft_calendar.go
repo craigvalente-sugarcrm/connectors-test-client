@@ -47,7 +47,7 @@ func (svc *Service) Calendars(ownerID string) (*[]string, error) {
 // List fetches calendar events
 func (svc *Service) List(ownerID string, search string, maxResults int) ([]*calendar.Event, error) {
 	msEvents := &types.Events{}
-	url := fmt.Sprintf("%s&$filter=startswith(subject,'%s')", deltaLink(ownerID), search)
+	url := fmt.Sprintf("%s&$top=%v&$filter=startswith(subject,'%s')", deltaLink(ownerID), maxResults, search)
 	// fmt.Println(url)
 	_, err := svc.client.Get(url, msEvents)
 	if err != nil {
