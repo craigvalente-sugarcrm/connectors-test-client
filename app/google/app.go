@@ -17,8 +17,8 @@ import (
 const eventPrefix = "--TEST_EVENT--"
 
 var config = oauth2.Config{
-	ClientID:     "CLIENT_ID",
-	ClientSecret: "CLIENT_SECRET",
+	ClientID:     "81678576524-8bnukr70pukotngh1ci1r7ph2h7broa2.apps.googleusercontent.com",
+	ClientSecret: "mdVshIJl7e9kacAXZQS5Lnlj",
 	Scopes:       []string{calendar.CalendarEventsScope},
 	Endpoint: oauth2.Endpoint{
 		AuthURL:  "https://accounts.google.com/o/oauth2/auth",
@@ -50,18 +50,18 @@ func New(ctx context.Context, token *oauth2.Token, calendarID string) (*App, err
 
 // GetTokenFromWeb Request a token from the web, then returns the retrieved token.
 func GetTokenFromWeb() {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Authorization Code: \n%v\n", authURL)
+	// authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	// fmt.Printf("Authorization Code: \n%v\n", authURL)
 
-	// authCode := "AUTH_CODE"
-	// token, err := config.Exchange(context.TODO(), authCode)
-	// if err != nil {
-	// 	log.Fatalf("Unable to retrieve token from web: %v", err)
-	// } else {
-	// 	fmt.Printf("Authorization Code: %v\n", token.AccessToken)
-	// 	fmt.Printf("Authorization Code: %v\n", token.RefreshToken)
-	// 	fmt.Printf("Authorization Code: %v\n", token.Expiry.Format(time.RFC3339))
-	// }
+	authCode := "4/yAFvMJd5ZAjfxuO5Nq9N3MC066FuzspL5PV_ReWjUroWjC3ICYMrC5g"
+	token, err := config.Exchange(context.TODO(), authCode)
+	if err != nil {
+		log.Fatalf("Unable to retrieve token from web: %v", err)
+	} else {
+		fmt.Printf("Authorization Code: %v\n", token.AccessToken)
+		fmt.Printf("Authorization Code: %v\n", token.RefreshToken)
+		fmt.Printf("Authorization Code: %v\n", token.Expiry.Format(time.RFC3339))
+	}
 }
 
 // ListEvents fetch events for given calendar

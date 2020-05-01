@@ -1,4 +1,4 @@
-package outlook
+package microsoft
 
 import (
 	"context"
@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/connectors-test-client/app/outlook/types"
+	"github.com/connectors-test-client/app/microsoft/types"
 	"github.com/pkg/errors"
-	"google.golang.org/api/calendar/v3"
 )
 
 // Service a MS Outlook Calendar Service
@@ -45,48 +44,40 @@ func (svc *Service) Calendars(ownerID string) (*[]string, error) {
 }
 
 // List fetches calendar events
-func (svc *Service) List(ownerID string, search string, maxResults int) ([]*calendar.Event, error) {
-	msEvents := &types.Events{}
+func (svc *Service) List(ownerID string, search string, maxResults int) ([]*types.Event, error) {
+	events := &types.Events{}
 	url := fmt.Sprintf("%s&$top=%v&$filter=startswith(subject,'%s')", deltaLink(ownerID), maxResults, search)
 	// fmt.Println(url)
-	_, err := svc.client.Get(url, msEvents)
+	_, err := svc.client.Get(url, events)
 	if err != nil {
-		return []*calendar.Event{}, errors.Wrap(err, "Unable to perform list")
+		return []*types.Event{}, errors.Wrap(err, "Unable to perform list")
 	}
 
-	events := []*calendar.Event{}
-	for _, msEvent := range msEvents.Events {
-		event := convertToGoogleEvent(msEvent)
-		events = append(events, event)
-	}
-
-	return events, nil
+	return events.Events, nil
 }
 
 // Insert inserts calendar event
-func (svc *Service) Insert(ownerID string, event *calendar.Event) (*calendar.Event, error) {
-	msEvent := convertToOutlookEvent(event)
+func (svc *Service) Insert(ownerID string, event *types.Event) (*types.Event, error) {
 	// bytes, _ := json.Marshal(msEvent)
 	// fmt.Printf(string(bytes))
-	resp, err := svc.client.Post(eventsURL(ownerID), msEvent)
+	resp, err := svc.client.Post(eventsURL(ownerID), event)
 	if err != nil {
-		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Insert")
+		return &types.Event{}, errors.Wrap(err, "Unable to perform Insert")
 	}
 	if resp.StatusCode != http.StatusCreated {
 		err := errors.New(fmt.Sprintf("Request failed: %v\n", resp.StatusCode))
 		body, _ := ReadHTTPResponse(resp)
 		err = errors.Wrap(err, string(body))
-		return &calendar.Event{}, err
+		return &types.Event{}, err
 	}
 	return event, nil
 }
 
 // Update updates existing calendar event
-func (svc *Service) Update(ownerID string, event *calendar.Event) (*calendar.Event, error) {
-	msEvent := convertToOutlookEvent(event)
-	_, err := svc.client.Patch(fmt.Sprintf("%s/%s", eventsURL(ownerID), event.Id), msEvent)
+func (svc *Service) Update(ownerID string, event *types.Event) (*types.Event, error) {
+	_, err := svc.client.Patch(fmt.Sprintf("%s/%s", eventsURL(ownerID), event.ID), event)
 	if err != nil {
-		return &calendar.Event{}, errors.Wrap(err, "Unable to perform Update")
+		return &types.Event{}, errors.Wrap(err, "Unable to perform Update")
 	}
 	return event, nil
 }
@@ -98,31 +89,6 @@ func (svc *Service) Delete(ownerID string, eventID string) error {
 		return errors.Wrap(err, "Unable to perform Update")
 	}
 	return nil
-}
-
-func convertToOutlookEvent(event *calendar.Event) *types.Event {
-	const DateTimeTimeZoneFormat = "2006-01-02T15:04:05.9999999"
-	t, _ := time.Parse(time.RFC3339, event.Start.DateTime)
-	start := &types.DateTimeTimeZone{
-		DateTime: t.Format(DateTimeTimeZoneFormat),
-		TimeZone: t.Location().String(),
-	}
-	t, _ = time.Parse(time.RFC3339, event.End.DateTime)
-	end := &types.DateTimeTimeZone{
-		DateTime: t.Format(DateTimeTimeZoneFormat),
-		TimeZone: t.Location().String(),
-	}
-	msEvent := &types.Event{
-		ID:      event.Id,
-		Subject: event.Summary,
-		Start:   start,
-		End:     end,
-		Body: &types.Body{
-			ContentType: "HTML",
-			Content:     event.Description,
-		},
-	}
-	return msEvent
 }
 
 func calendarURL(ownerID string) string {
@@ -147,18 +113,43 @@ func deltaLink(ownerID string) string {
 	)
 }
 
-func convertToGoogleEvent(msEvent *types.Event) *calendar.Event {
-	start, _ := msEvent.Start.Time()
-	end, _ := msEvent.End.Time()
-	event := &calendar.Event{
-		Id:      msEvent.ID,
-		Summary: msEvent.Subject,
-		Start: &calendar.EventDateTime{
-			DateTime: start.Format(time.RFC3339),
-		},
-		End: &calendar.EventDateTime{
-			DateTime: end.Format(time.RFC3339),
-		},
-	}
-	return event
-}
+// func convertToOutlookEvent(event *calendar.Event) *types.Event {
+// 	const DateTimeTimeZoneFormat = "2006-01-02T15:04:05.9999999"
+// 	t, _ := time.Parse(time.RFC3339, event.Start.DateTime)
+// 	start := &types.DateTimeTimeZone{
+// 		DateTime: t.Format(DateTimeTimeZoneFormat),
+// 		TimeZone: t.Location().String(),
+// 	}
+// 	t, _ = time.Parse(time.RFC3339, event.End.DateTime)
+// 	end := &types.DateTimeTimeZone{
+// 		DateTime: t.Format(DateTimeTimeZoneFormat),
+// 		TimeZone: t.Location().String(),
+// 	}
+// 	msEvent := &types.Event{
+// 		ID:      event.Id,
+// 		Subject: event.Summary,
+// 		Start:   start,
+// 		End:     end,
+// 		Body: &types.Body{
+// 			ContentType: "HTML",
+// 			Content:     event.Description,
+// 		},
+// 	}
+// 	return msEvent
+// }
+
+// func convertToGoogleEvent(msEvent *types.Event) *calendar.Event {
+// 	start, _ := msEvent.Start.Time()
+// 	end, _ := msEvent.End.Time()
+// 	event := &calendar.Event{
+// 		Id:      msEvent.ID,
+// 		Summary: msEvent.Subject,
+// 		Start: &calendar.EventDateTime{
+// 			DateTime: start.Format(time.RFC3339),
+// 		},
+// 		End: &calendar.EventDateTime{
+// 			DateTime: end.Format(time.RFC3339),
+// 		},
+// 	}
+// 	return event
+// }

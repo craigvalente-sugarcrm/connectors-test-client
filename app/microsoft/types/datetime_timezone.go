@@ -6,8 +6,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// DateTimeTimeZoneFormat is RFC3339Nano without the time zone offset (Z or
-// ±hh:mm).
+// DateTimeTimeZoneFormat is RFC3339Nano without the time zone offset
+// (Z or ±hh:mm).
 const DateTimeTimeZoneFormat = "2006-01-02T15:04:05.9999999"
 
 // DateTimeTimeZone represents the Microsoft Graph API's dateTimeTimeZone
