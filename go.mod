@@ -3,7 +3,9 @@ module github.com/connectors-test-client
 go 1.13
 
 require (
+	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
+	github.com/google/uuid v1.1.1
 	github.com/gorilla/handlers v1.4.2 // indirect
 	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/mitchellh/mapstructure v1.3.0 // indirect

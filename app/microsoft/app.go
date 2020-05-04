@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math"
 	"math/rand"
 	"time"
 
@@ -64,7 +63,7 @@ func (app *App) ListEvents(count int) []*types.Event {
 }
 
 // CreateEvents create a specified number of events
-func (app *App) CreateEvents(count int, rate int) []*types.Event {
+func (app *App) CreateEvents(count int) []*types.Event {
 	var events []*types.Event
 	for i := 0; i < count; i++ {
 		rand.Seed(time.Now().UnixNano())
@@ -88,18 +87,15 @@ func (app *App) CreateEvents(count int, rate int) []*types.Event {
 		events = append(events, event)
 	}
 
-	delay := int(math.Round(1.0 / (float64(rate) / 60)))
-	for i, event := range events {
-		goEvent, err := app.svc.Insert(app.ownerID, event)
-		if err != nil {
-			log.Printf("Error creating event: %v\n", event.Subject)
-		} else {
-			events[i] = goEvent
-			fmt.Printf("CREATE: %v (%v)\n", event.Subject, event.Start.DateTime)
-		}
-
-		time.Sleep(time.Second * time.Duration(delay))
-	}
+	// for i, event := range events {
+	// 	goEvent, err := app.svc.Insert(app.ownerID, event)
+	// 	if err != nil {
+	// 		log.Printf("Error creating event: %v\n", event.Subject)
+	// 	} else {
+	// 		events[i] = goEvent
+	// 		fmt.Printf("CREATE: %v (%v)\n", event.Subject, event.Start.DateTime)
+	// 	}
+	// }
 
 	return events
 }
